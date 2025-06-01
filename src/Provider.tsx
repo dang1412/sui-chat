@@ -9,18 +9,18 @@ export interface Message {
 
 export enum ConnectionStatus {
   // Offer side
-  INIT,
-  OFFERING,
-  OFFERED,
-  ANSWER_RECEIVED,
+  INIT='INIT',
+  OFFERING='OFFERING',
+  OFFERED='OFFERED',
+  ANSWER_RECEIVED='ANSWER_RECEIVED',
 
   // Answer side
-  OFFER_RECEIVED,
-  ANSWERING,
-  ANSWERED,
+  OFFER_RECEIVED='OFFER_RECEIVED',
+  ANSWERING='ANSWERING',
+  ANSWERED='ANSWERED',
 
   // Both sides
-  CONNECTED,
+  CONNECTED= 'CONNECTED',
 }
 
 export interface ChannelData {

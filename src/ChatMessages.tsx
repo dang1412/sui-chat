@@ -4,6 +4,7 @@ import { ScrollArea } from '@radix-ui/themes';
 
 import { Message, useChat } from './Provider';
 import { RTCService } from './lib/RTCService';
+import TimeBefore from './TimeBefore';
 
 export const accountConnectServices: { [acc: string]: RTCService } = {};
 
@@ -53,7 +54,7 @@ const ChatMessages: React.FC<Props> = ({ accountConnects, selectedAccount, setSe
   }, [selectedAccount, message, dispatch]);
 
   return (
-    <Flex style={{ height: 600, border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+    <Flex style={{ height: 400, border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
       {/* Sidebar */}
       <Box
         style={{
@@ -119,7 +120,7 @@ const ChatMessages: React.FC<Props> = ({ accountConnects, selectedAccount, setSe
             // <ChatMessages messages={messages} />
             <Box
               style={{
-                maxHeight: 500,
+                maxHeight: 400,
                 overflowY: 'auto',
                 padding: 16,
                 // background: '#f9f9f9',
@@ -143,7 +144,7 @@ const ChatMessages: React.FC<Props> = ({ accountConnects, selectedAccount, setSe
                     {msg.sender}
                   </Box>
                   <Box as='span' style={{ color: '#888', fontSize: 12 }}>
-                    {msg.timestamp}
+                    <TimeBefore timestamp={msg.timestamp} />
                   </Box>
                   <Box mt='2'>{msg.text}</Box>
                 </Box>
