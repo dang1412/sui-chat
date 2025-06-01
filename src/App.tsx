@@ -1,21 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
-import { Box, Button, Container, Flex, Heading } from '@radix-ui/themes';
-import { ScrollArea } from '@radix-ui/themes';
+import { Box, Button, Container, Flex, Heading, Text } from '@radix-ui/themes';
 
 import useRTCConnect from './hooks/useRTCConnect';
 import useListenToOffer, { OfferConnectEvent } from './hooks/useListenToOffer';
 
-import { Message, useChat } from './Provider';
+import { ConnectionStatus, useChat } from './Provider';
 import { RTCService } from './lib/RTCService';
 import { IPFSService } from './lib/IPFSService';
-import ChatMessages from './ChatMessages';
+import ChatMessages, { accountConnectServices } from './ChatMessages';
 
 const ipfs = IPFSService.getInstance();
-
-const accountConnectServices: { [acc: string]: RTCService } = {};
-
-let id = 0;
 
 function App() {
   const account = useCurrentAccount();
@@ -24,39 +19,54 @@ function App() {
   // toAddr input
   const [toAddr, setToAddr] = useState('');
   // selected account to chat with
-  const [selectedChat, setSelectedChat] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState('');
   // state of all chats
-  const { state, dispatch } = useChat()
+  const { dispatch } = useChat()
   // messages to display
-  const messages = useMemo(() => state[selectedChat] || [], [state, selectedChat]);
 
   const { offerConnect } = useRTCConnect();
 
   const listenToOffer = useListenToOffer();
 
-  const createService = useCallback((to: string) => {
+  const createService = useCallback((to: string, isAnswering = false) => {
+    setAccountConnects((prev) => [...prev, to]);
+    setSelectedAccount(to);
     return new RTCService({
       onLocalSDP: async (sdp) => {
         console.log('Local SDP:', sdp);
         // Here you would typically send the SDP to the other peer
+        dispatch({
+          type: 'UPDATE_STATUS',
+          channel: to,
+          status: isAnswering ? ConnectionStatus.ANSWERING : ConnectionStatus.OFFERING,
+        });
         // Upload to IPFS and get the CID
         const cid = await ipfs.add(sdp)
         console.log('IPFS CID:', cid);
         // Call contract with CID to send to other peer
-        offerConnect(to, cid);
+        await offerConnect(to, cid);
+        dispatch({
+          type: 'UPDATE_STATUS',
+          channel: to,
+          status: isAnswering ? ConnectionStatus.ANSWERED : ConnectionStatus.OFFERED,
+        });
       },
       onMessage: (data) => {
         console.log('Received message:', data);
         dispatch({ type: 'ADD_MESSAGE', channel: to, message: {
-          id: id++,
+          id: 0,
           text: data as string,
           sender: `${to.slice(0, 8)}...${to.slice(-4)}`,
           timestamp: Date.now(),
         } });
       },
       onConnect: () => {
+        dispatch({
+          type: 'UPDATE_STATUS',
+          channel: to,
+          status: ConnectionStatus.CONNECTED,
+        });
         console.log('Connected to:', to);
-        setAccountConnects((prev) => [...prev, to]);
       }
     });
   }, [offerConnect]);
@@ -70,13 +80,23 @@ function App() {
     if (!accountConnectServices[e.from]) {
       // received offer from a new address
       console.log('Got offer', sdp)
-      const service = createService(e.from);
+      dispatch({
+        type: 'UPDATE_STATUS',
+        channel: e.from,
+        status: ConnectionStatus.OFFER_RECEIVED,
+      });
+      const service = createService(e.from, true);
       service.receiveOfferThenAnswer(sdp);
 
       accountConnectServices[e.from] = service;
     } else {
       // received answer after making offer
       console.log('Got answer', sdp)
+      dispatch({
+        type: 'UPDATE_STATUS',
+        channel: e.from,
+        status: ConnectionStatus.ANSWER_RECEIVED,
+      });
       const service = accountConnectServices[e.from]
       service.receiveSDP(sdp)
     }
@@ -86,6 +106,12 @@ function App() {
   const doConnect = useCallback(async () => {
     // already connected or connecting
     if (accountConnectServices[toAddr]) return;
+
+    dispatch({
+      type: 'UPDATE_STATUS',
+      channel: toAddr,
+      status: ConnectionStatus.INIT,
+    });
 
     const service = createService(toAddr);
 
@@ -107,29 +133,6 @@ function App() {
     // Cleanup the subscription
     return unsub
   }, [account])
-
-  // Chat input
-  const [message, setMessage] = useState('');
-
-  // Send chat input
-  const sendMessage = useCallback(() => {
-    const service = accountConnectServices[selectedChat];
-    if (!selectedChat || !service) return;
-    
-    // send to peer
-    service.sendMessage(message);
-
-    // display
-    const messageData: Message = {
-      id: id++,
-      text: message,
-      sender: 'Me',
-      timestamp: Date.now(),
-    }
-    dispatch({ type: 'ADD_MESSAGE', channel: selectedChat, message: messageData });
-
-    setMessage('');
-  }, [selectedChat, account, message, dispatch]);
 
   return (
     <>
@@ -158,7 +161,10 @@ function App() {
           style={{ background: 'var(--gray-a2)', minHeight: 500 }}
         >
           {account ? (
-            <Heading>Please allow microphone when connect to enable WebRTC</Heading>
+            <>
+              <Heading>Please allow microphone when connect to enable WebRTC</Heading>
+              <Text>{account.address}</Text>
+            </>
           ) : (
             <Heading>Please connect your wallet</Heading>
           )}
@@ -182,95 +188,11 @@ function App() {
             </Flex>
           </Box>
 
-          {/* Main layout: Sidebar + Chat window */}
-          <Flex style={{ height: 400, border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
-            {/* Sidebar */}
-            <Box
-              style={{
-                width: 220,
-                background: '#fafbfc',
-                color: '#333',
-                borderRight: '1px solid #eee',
-                padding: 0,
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              <Heading size='4' style={{ padding: '16px 12px 8px 16px' }}>
-                List
-              </Heading>
-              <ScrollArea style={{ flex: 1 }}>
-                {accountConnects.length === 0 ? (
-                  <Box px='4' py='2' style={{ color: '#888' }}>
-                    No connections
-                  </Box>
-                ) : (
-                  accountConnects.map((addr) => (
-                    <Box
-                      key={addr}
-                      px='4'
-                      py='2'
-                      style={{
-                        cursor: 'pointer',
-                        background: selectedChat === addr ? '#e6f0ff' : undefined,
-                        borderLeft: selectedChat === addr ? '4px solid #3b82f6' : '4px solid transparent',
-                        transition: 'background 0.2s',
-                      }}
-                      onClick={() => setSelectedChat(addr)}
-                    >
-                      {addr.slice(0, 8)}...{addr.slice(-4)}
-                    </Box>
-                  ))
-                )}
-              </ScrollArea>
-            </Box>
-
-            {/* Chat Window */}
-            <Box style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <Box
-                style={{
-                  borderBottom: '1px solid #eee',
-                  padding: '12px 16px',
-                  background: '#f8fafc',
-                  color: '#333',
-                  fontWeight: 500,
-                  minHeight: 48,
-                }}
-              >
-                {selectedChat
-                  ? `Chat with ${selectedChat.slice(0, 8)}...${selectedChat.slice(-4)}`
-                  : 'Select a connection to chat'}
-              </Box>
-              <Box style={{ flex: 1, padding: 16, overflowY: 'auto' }}>
-                {/* Chat messages would go here */}
-                {selectedChat ? (
-                  // <Box><Text color='gray'>No messages yet.</Text></Box>
-                  <ChatMessages messages={messages} />
-                ) : (
-                  <Box style={{ color: '#888' }}>Choose a connection from the sidebar.</Box>
-                )}
-              </Box>
-              {selectedChat && (
-                <Flex px='3' py='2' gap='2' style={{ borderTop: '1px solid #eee' }}>
-                  <input
-                    type='text'
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder='Type a message'
-                    style={{
-                      flex: 1,
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc',
-                      boxSizing: 'border-box',
-                    }}
-                    // onChange, value, etc. for chat input
-                  />
-                  <Button onClick={sendMessage}>Send</Button>
-                </Flex>
-              )}
-            </Box>
-          </Flex>
+          <ChatMessages
+            accountConnects={accountConnects}
+            selectedAccount={selectedAccount}
+            setSelectedAccount={setSelectedAccount}
+          />
 
         </Container>
       </Container>

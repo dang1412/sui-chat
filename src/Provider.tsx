@@ -1,18 +1,42 @@
 import React, { createContext, useReducer, useContext, ReactNode } from 'react';
 
-export type Message = {
+export interface Message {
   id: number;
   text: string;
   sender: string;
   timestamp: number;
-};
+}
+
+export enum ConnectionStatus {
+  // Offer side
+  INIT,
+  OFFERING,
+  OFFERED,
+  ANSWER_RECEIVED,
+
+  // Answer side
+  OFFER_RECEIVED,
+  ANSWERING,
+  ANSWERED,
+
+  // Both sides
+  CONNECTED,
+}
+
+export interface ChannelData {
+  status: ConnectionStatus;
+  messages: Message[];
+}
+
+let id = 0;
 
 type State = {
-  [channel: string]: Message[];
+  [channel: string]: ChannelData
 };
 
 type Action = 
-  | { type: 'ADD_MESSAGE'; channel: string; message: Message };
+  | { type: 'ADD_MESSAGE'; channel: string; message: Message }
+  | { type: 'UPDATE_STATUS'; channel: string; status: ConnectionStatus }
 
 const initialState: State = {};
 
@@ -20,9 +44,25 @@ function chatReducer(state: State, action: Action): State {
   switch (action.type) {
     case 'ADD_MESSAGE': {
       const { channel, message } = action;
+      message.id = id++;
+      const channelData = state[channel] || { status: ConnectionStatus.CONNECTED, messages: [] };
       return {
         ...state,
-        [channel]: [...(state[channel] || []), message],
+        [channel]: {
+          ...channelData,
+          messages: [...channelData.messages, message],
+        },
+      };
+    }
+    case 'UPDATE_STATUS': {
+      const { channel, status } = action;
+      const channelData = state[channel] || { status: ConnectionStatus.CONNECTED, messages: [] };
+      return {
+        ...state,
+        [channel]: {
+          ...channelData,
+          status,
+        },
       };
     }
     default:
