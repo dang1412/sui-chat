@@ -1,92 +1,62 @@
-# Sui dApp Starter Template
+# WebRTC Chat App with Sui Blockchain Signaling
 
-This dApp was created using `@mysten/create-dapp` that sets up a basic React
-Client dApp using the following tools:
+This is a decentralized peer-to-peer (P2P) chat application that uses WebRTC for real-time communication and the Sui Blockchain for the signaling (handshake) process — enabling direct, serverless message exchange between users.
 
-- [React](https://react.dev/) as the UI framework
-- [TypeScript](https://www.typescriptlang.org/) for type checking
-- [Vite](https://vitejs.dev/) for build tooling
-- [Radix UI](https://www.radix-ui.com/) for pre-built UI components
-- [ESLint](https://eslint.org/) for linting
-- [`@mysten/dapp-kit`](https://sdk.mystenlabs.com/dapp-kit) for connecting to
-  wallets and loading data
-- [pnpm](https://pnpm.io/) for package management
+## How It Works
 
-For a full guide on how to build this dApp from scratch, visit this
-[guide](http://docs.sui.io/guides/developer/app-examples/e2e-counter#frontend).
+### 1. Initiating a Handshake
 
-## Deploying your Move code
+One peer initiates a connection by generating WebRTC offer data and sends it to the blockchain by calling a smart contract function. This function emits an event containing the handshake info.
 
-### Install Sui cli
+### 2. Listening for Events
 
-Before deploying your move code, ensure that you have installed the Sui CLI. You
-can follow the [Sui installation instruction](https://docs.sui.io/build/install)
-to get everything set up.
+The other peer listens to these blockchain events, detects one targeting it, and responds by sending its WebRTC answer data using the same smart contract method. The smart contract emits another event for the initiator to receive.
 
-This template uses `testnet` by default, so we'll need to set up a testnet
-environment in the CLI:
+### 3. Establishing P2P Connection
 
-```bash
-sui client new-env --alias testnet --rpc https://fullnode.testnet.sui.io:443
-sui client switch --env testnet
+After both sides exchange their WebRTC offer/answer info through events, a direct P2P WebRTC connection is established — enabling chat without any centralized server.
+
+## Techs Used
+
+- IPFS: for uploading network info and only store the cid on-chain
+- Sui contract:
+  - For sending network info from user to user (emitting event).
+  - User queries event from the contract and filter their's message (polling).
+- Sui contract for storing user history data as a bunch, so user can keep the message history (TODO).
+- WebRTC for p2p connection.
+
+The move contract part is quite simple.
+
+```rs
+/// Offer event
+public struct OfferConnectEvent has drop, copy {
+  from: address,
+  to: address,
+  cid: vector<u8>,
+}
+
+/// Emit offer event
+public entry fun offer_connect(to: address, cid: vector<u8>, ctx: &mut TxContext) {
+  let event = OfferConnectEvent {
+    from: ctx.sender(),
+    to,
+    cid,
+  };
+  event::emit(event);
+}
 ```
 
-If you haven't set up an address in the sui client yet, you can use the
-following command to get a new address:
+## 🔁 Event Polling Mechanism
 
-```bash
-sui client new-address secp256k1
-```
+1. Currently, event listening is implemented via polling the blockchain every 15 seconds from the frontend.
+2. This has two downsides:
+  - 📈 **Scalability concern**: Polling from many clients can overload the RPC node.
+  - 🧹 **Inefficiency**: Every client receives all events and must filter out irrelevant ones.
 
-This well generate a new address and recover phrase for you. You can mark a
-newly created address as you active address by running the following command
-with your new address:
+=> We need a separate indexer for event listening.
 
-```bash
-sui client switch --address 0xYOUR_ADDRESS...
-```
+## ✅ Benefits
 
-We can ensure we have some Sui in our new wallet by requesting Sui from the
-faucet `https://faucet.sui.io`.
-
-### Publishing the move package
-
-The move code for this template is located in the `move` directory. To publish
-it, you can enter the `move` directory, and publish it with the Sui CLI:
-
-```bash
-cd move
-sui client publish --gas-budget 100000000 counter
-```
-
-In the output there will be an object with a `"packageId"` property. You'll want
-to save that package ID to the `src/constants.ts` file as `PACKAGE_ID`:
-
-```ts
-export const TESTNET_COUNTER_PACKAGE_ID = "<YOUR_PACKAGE_ID>";
-```
-
-Now that we have published the move code, and update the package ID, we can
-start the app.
-
-## Starting your dApp
-
-To install dependencies you can run
-
-```bash
-pnpm install
-```
-
-To start your dApp in development mode run
-
-```bash
-pnpm dev
-```
-
-## Building
-
-To build your app for deployment you can run
-
-```bash
-pnpm build
-```
+- ⚡ Fully **Decentralized**: No signaling server is required — the blockchain handles handshake communication.
+- 🧩 **Modular**: This signaling method can be reused across any Sui-based dApp needing user-to-user messaging.
+- 💸 **Low Cost**: Only minimal on-chain actions are needed, keeping gas usage and cost extremely low.
