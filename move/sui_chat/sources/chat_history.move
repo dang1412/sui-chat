@@ -1,13 +1,9 @@
 module sui_chat::chat_history {
 
-    use sui::object::{Self, UID};
-    use sui::tx_context::TxContext;
-    use sui::transfer;
-    use sui::string;
-    use sui::vector;
+    use std::string;
 
     /// Chat channel with list of history bunches (IPFS hashes)
-    struct ChatChannel has key {
+    public struct ChatChannel has key {
         id: UID,
         name: string::String, // Optional name like "with Alice"
         history: vector<string::String>, // IPFS hashes
@@ -15,21 +11,23 @@ module sui_chat::chat_history {
     }
 
     /// Per-user container for all chat channels
-    struct UserHistory has key {
+    public struct UserHistory has key {
         id: UID,
         owner: address,
-        channels: vector<UID>, // IDs of ChatChannel objects
+        channels: vector<address>, // Store object addresses (IDs) of ChatChannel objects
     }
 
     /// Initialize a user's history object (call this once per user)
-    public entry fun create_user_history(ctx: &mut TxContext): UserHistory {
+    public entry fun create_user_history(ctx: &mut TxContext) {
         let uid = object::new(ctx);
         let sender = tx_context::sender(ctx);
-        UserHistory {
+        let user_history = UserHistory {
             id: uid,
             owner: sender,
-            channels: vector::empty<UID>(),
-        }
+            channels: vector::empty<address>(),
+        };
+
+        transfer::transfer(user_history, sender);
     }
 
     /// Add a new chat channel under this user
@@ -37,7 +35,7 @@ module sui_chat::chat_history {
         user: &mut UserHistory,
         name: string::String,
         ctx: &mut TxContext
-    ): ChatChannel {
+    ) {
         let sender = tx_context::sender(ctx);
         assert!(sender == user.owner, 0); // only owner can create channels
         let channel_id = object::new(ctx);
@@ -48,8 +46,8 @@ module sui_chat::chat_history {
             owner: sender,
         };
         let channel_ref = object::uid_to_address(&channel.id);
-        vector::push_back(&mut user.channels, channel.id);
-        channel
+        vector::push_back(&mut user.channels, channel_ref);
+        transfer::transfer(channel, sender);
     }
 
     /// Add an IPFS hash to a chat channel
