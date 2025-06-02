@@ -17,6 +17,14 @@ module sui_chat::chat_history {
         channels: vector<address>, // Store object addresses (IDs) of ChatChannel objects
     }
 
+    public fun owner(self: &UserHistory): address {
+        self.owner
+    }
+
+    public fun channels(self: &UserHistory): vector<address> {
+        self.channels
+    }
+
     /// Initialize a user's history object (call this once per user)
     public entry fun create_user_history(ctx: &mut TxContext) {
         let uid = object::new(ctx);

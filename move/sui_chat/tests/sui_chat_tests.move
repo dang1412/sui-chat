@@ -1,7 +1,6 @@
 #[test_only]
 module sui_chat::rtc_connect_tests;
 // uncomment this line to import the module
-// use sui_chat::sui_chat;
 
 const ENotImplemented: u64 = 0;
 
@@ -15,14 +14,12 @@ fun test_sui_chat_fail() {
     abort ENotImplemented
 }
 
-use sui::event;
-use sui::tx_context;
-use sui_chat::rtc_connect::{offer_connect, OfferConnectEvent};
+use sui_chat::rtc_connect::{offer_connect};
 
 #[test]
 fun test_offer_connect_event() {
     let mut ctx = tx_context::dummy();
-    let sender = ctx.sender();
+    // let sender = ctx.sender();
     let recipient = @0xCAFE;
     let cid = b"test-offer";
 
