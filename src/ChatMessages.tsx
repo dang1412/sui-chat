@@ -3,10 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollArea } from '@radix-ui/themes';
 
 import { Message, useChat } from './Provider';
-import { RTCService } from './lib/RTCService';
+// import { RTCService } from './lib/RTCService';
 import TimeBefore from './TimeBefore';
+import { useWebRTCConnect } from './hooks/useWebRTCConnect';
 
-export const accountConnectServices: { [acc: string]: RTCService } = {};
+// export const accountConnectServices: { [acc: string]: RTCService } = {};
 
 interface Props {
   accountConnects: string[];
@@ -17,6 +18,8 @@ interface Props {
 const ChatMessages: React.FC<Props> = ({ accountConnects, selectedAccount, setSelectedAccount }) => {
   // state of all chats
   const { state, dispatch } = useChat()
+  const { getAccountConnectService } = useWebRTCConnect()
+  
   // messages to display
   const messages = useMemo(() => state[selectedAccount]?.messages || [], [state, selectedAccount]);
   const channelStatus = useMemo(() => state[selectedAccount]?.status || 'undefined', [state, selectedAccount]);
@@ -35,7 +38,7 @@ const ChatMessages: React.FC<Props> = ({ accountConnects, selectedAccount, setSe
 
   // Send chat input
   const sendMessage = useCallback(() => {
-    const service = accountConnectServices[selectedAccount];
+    const service = getAccountConnectService(selectedAccount);
     if (!selectedAccount || !service) return;
     
     // send to peer
