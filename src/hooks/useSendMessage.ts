@@ -7,12 +7,12 @@ import { Transaction } from '@mysten/sui/transactions';
 
 import { useNetworkVariable } from '../networkConfig';
 
-function useRTCConnect() {
+function useSendMessage() {
   const rtcPackageId = useNetworkVariable('rtcPackageId');
   const suiClient = useSuiClient();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
-  const offerConnect = useCallback(async (to: string, cid: string) => {
+  const sendMessage = useCallback(async (to: string, cid: string) => {
     const tx = new Transaction();
 
     tx.moveCall({
@@ -29,7 +29,7 @@ function useRTCConnect() {
     console.log('Transaction confirmed:', rs.effects);
   }, [rtcPackageId, suiClient, signAndExecute]);
 
-  return { offerConnect }
+  return { sendMessage }
 }
 
-export default useRTCConnect;
+export default useSendMessage;

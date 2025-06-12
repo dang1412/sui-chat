@@ -4,18 +4,18 @@ import { EventId, SuiClient, SuiEvent } from "@mysten/sui/client";
 
 import { useNetworkVariable } from "../networkConfig";
 
-export interface OfferConnectEvent {
+export interface EventMessagePayload {
   from: string;
   to: string;
   cid: string
 }
 
-export default function useListenToOffer() {
+export default function useListenToMessage() {
   const rtcPackageId = useNetworkVariable("rtcPackageId");
   const account = useCurrentAccount();
   const suiClient = useSuiClient();
 
-  const listenToOffer = useCallback(async (onOffer: (e: OfferConnectEvent) => void) => {
+  const listenToOffer = useCallback(async (onOffer: (e: EventMessagePayload) => void) => {
 
     const type = `${rtcPackageId}::rtc_connect::OfferConnectEvent`
     // const unsub = await suiClient.subscribeEvent({
@@ -35,7 +35,7 @@ export default function useListenToOffer() {
     const unsub = pollingEvents(suiClient, { cursor, type, onMessages: (events) => {
       console.log("Got new events:", events);
       for (const event of events) {
-        const data = event.parsedJson as OfferConnectEvent & {cid: number[]};
+        const data = event.parsedJson as EventMessagePayload & {cid: number[]};
         const cid = new TextDecoder().decode(Uint8Array.from(data.cid));
         if (data.to === account?.address) {
           onOffer({...data, cid}); // Call the callback with the event data
