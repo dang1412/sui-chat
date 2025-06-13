@@ -3,26 +3,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollArea } from '@radix-ui/themes';
 
 import { Message, useChat } from './Provider';
-// import { RTCService } from './lib/RTCService';
 import TimeBefore from './TimeBefore';
 import { useWebRTCConnect } from './hooks/useWebRTCConnect';
 
-// export const accountConnectServices: { [acc: string]: RTCService } = {};
+interface Props {}
 
-interface Props {
-  accountConnects: string[];
-  selectedAccount: string;
-  setSelectedAccount: (account: string) => void;
-}
-
-const ChatMessages: React.FC<Props> = ({ accountConnects, selectedAccount, setSelectedAccount }) => {
+const ChatMessages: React.FC<Props> = () => {
   // state of all chats
   const { state, dispatch } = useChat()
   const { getAccountConnectService } = useWebRTCConnect()
-  
+
+  const selectedAccount = state.selectedChannel || '';
+
   // messages to display
-  const messages = useMemo(() => state[selectedAccount]?.messages || [], [state, selectedAccount]);
-  const channelStatus = useMemo(() => state[selectedAccount]?.status || 'undefined', [state, selectedAccount]);
+  const messages = useMemo(() => state.channels[selectedAccount]?.messages || [], [state, selectedAccount]);
+  const channelStatus = useMemo(() => state.channels[selectedAccount]?.status || 'undefined', [state, selectedAccount]);
 
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -74,12 +69,12 @@ const ChatMessages: React.FC<Props> = ({ accountConnects, selectedAccount, setSe
           List
         </Heading>
         <ScrollArea style={{ flex: 1 }}>
-          {accountConnects.length === 0 ? (
+          {state.channelList.length === 0 ? (
             <Box px='4' py='2' style={{ color: '#888' }}>
               No connections
             </Box>
           ) : (
-            accountConnects.map((addr) => (
+            state.channelList.map((addr) => (
               <Box
                 key={addr}
                 px='4'
@@ -90,7 +85,7 @@ const ChatMessages: React.FC<Props> = ({ accountConnects, selectedAccount, setSe
                   borderLeft: selectedAccount === addr ? '4px solid #3b82f6' : '4px solid transparent',
                   transition: 'background 0.2s',
                 }}
-                onClick={() => setSelectedAccount(addr)}
+                onClick={() => dispatch({ type: 'SELECT_CHANNEL', channel: addr })}
               >
                 {addr.slice(0, 8)}...{addr.slice(-4)}
               </Box>

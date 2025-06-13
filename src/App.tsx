@@ -7,12 +7,8 @@ import { useWebRTCConnect } from './hooks/useWebRTCConnect';
 
 function App() {
   const account = useCurrentAccount();
-  // List of connected accounts
-  const [accountConnects, setAccountConnects] = useState<string[]>([]);
   // toAddr input
   const [toAddr, setToAddr] = useState('');
-  // selected account to chat with
-  const [selectedAccount, setSelectedAccount] = useState('');
 
   // listen to connect request and connect to peer
   const { offerConnect } = useWebRTCConnect()
@@ -22,14 +18,8 @@ function App() {
       alert('Please enter an address to connect');
       return;
     }
-    if (accountConnects.includes(toAddr)) {
-      alert('Already connected to this address');
-      return;
-    }
     offerConnect(toAddr);
-    setAccountConnects((prev) => [...prev, toAddr]);
-    setSelectedAccount(toAddr);
-  }, [toAddr, accountConnects, offerConnect]);
+  }, [toAddr, offerConnect]);
 
   return (
     <>
@@ -85,11 +75,7 @@ function App() {
             </Flex>
           </Box>
 
-          <ChatMessages
-            accountConnects={accountConnects}
-            selectedAccount={selectedAccount}
-            setSelectedAccount={setSelectedAccount}
-          />
+          <ChatMessages />
 
         </Container>
       </Container>

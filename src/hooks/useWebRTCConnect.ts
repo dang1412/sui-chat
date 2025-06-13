@@ -27,8 +27,8 @@ export function useWebRTCConnect() {
   const { dispatch } = useChat()
 
   const createService = useCallback((to: string, isAnswering = false) => {
-    // setAccountConnects((prev) => [...prev, to]);
-    // setSelectedAccount(to);
+    dispatch({ type: 'ADD_CHANNEL', channel: to });
+    dispatch({ type: 'SELECT_CHANNEL', channel: to });
     return new RTCService({
       onLocalSDP: async (sdp) => {
         console.log('Local SDP:', sdp);
